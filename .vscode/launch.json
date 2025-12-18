@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "OmniFuse: train_raw_manifest (simple, synth data)",
+      "type": "python",
+      "request": "launch",
+      "module": "omnifuse.train_raw_manifest",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "args": [
+        "--manifest",
+        "${workspaceFolder}\\data_synth_raw\\manifest.csv",
+        "--num-classes",
+        "3",
+        "--labs-table",
+        "${workspaceFolder}\\data_synth_raw\\labs_table.csv",
+        "--text-encoder",
+        "simple",
+        "--no-pretrained-image",
+        "--epochs",
+        "2",
+        "--seed",
+        "42",
+        "--out-dir",
+        "${workspaceFolder}\\runs\\debug_simple"
+      ]
+    },
+    {
+      "name": "OmniFuse: train_raw_manifest (hf bert-base-chinese)",
+      "type": "python",
+      "request": "launch",
+      "module": "omnifuse.train_raw_manifest",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "args": [
+        "--manifest",
+        "${workspaceFolder}\\data_synth_raw\\manifest.csv",
+        "--num-classes",
+        "3",
+        "--labs-table",
+        "${workspaceFolder}\\data_synth_raw\\labs_table.csv",
+        "--text-encoder",
+        "hf",
+        "--text-model",
+        "bert-base-chinese",
+        "--text-max-length",
+        "256",
+        "--no-pretrained-image",
+        "--epochs",
+        "2",
+        "--seed",
+        "42",
+        "--out-dir",
+        "${workspaceFolder}\\runs\\debug_hf"
+      ]
+    }
+  ]
+}

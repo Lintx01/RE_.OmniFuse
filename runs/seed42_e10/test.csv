@@ -1,0 +1,2 @@
+test_loss,test_acc,test_macro_f1
+0.848750,0.913043,0.910714
