@@ -81,6 +81,20 @@ pip install -r requirements_raw.txt
 python -m omnifuse.train_raw_manifest --manifest path\\to\\manifest.csv --num-classes 3
 ```
 
+注意：在 VS Code 里复制“可点击链接”有时会变成 `http://_vscodecontentref_/...` 这种内部引用，直接粘到终端会报错。终端里参数必须是**真实文件路径字符串**（相对或绝对路径都可以），例如 `data_synth_raw\\manifest.csv`。
+
+该脚本会对 `manifest.csv` **按 label 分层随机划分** `train/val/test`（默认 0.8/0.1/0.1），并在每个 epoch 打印验证集 `acc/macro-F1`，训练结束后打印测试集指标与混淆矩阵。
+
+如果你需要“可直接写论文/画曲线”的结果文件，可传入 `--out-dir` 自动保存为 CSV：
+
+- `metrics.csv`：每个 epoch 的 `train_loss/val_loss/val_acc/val_macro_f1`
+- `test.csv`：最终 `test_loss/test_acc/test_macro_f1`
+- `confusion_matrix.csv`：测试集混淆矩阵（rows=true, cols=pred）
+- `split.csv`：train/val/test 样本数
+- `meta.csv`：本次运行的主要超参数与路径
+
+可通过这些参数控制划分：`--seed --train-ratio --val-ratio --test-ratio`
+
 如果你的实验室数据是“总表”（一张 CSV，包含 `id` 列和多列数值特征），可以额外传入：
 
 ```bash
@@ -92,7 +106,40 @@ python -m omnifuse.train_raw_manifest --manifest path\\to\\manifest.csv --num-cl
 
 ```bash
 python -m omnifuse.train_raw_manifest --manifest path\\to\\manifest.csv --num-classes 3 \
-	--text-model bert-base-chinese --image-backbone resnet34 --image-size 224 --freeze-text
+	--text-encoder hf --text-model bert-base-chinese --image-backbone resnet34 --image-size 224 --freeze-text
+```
+
+说明：
+
+- 图像预处理固定为 `Resize(224)+CenterCrop(224)+ImageNet Normalize`（模拟数据阶段也一致）。
+- `--text-encoder hf` 使用 HuggingFace Transformers，并对 token 做 `attention_mask` 加权的 mean pooling（不是 CLS）。
+- 默认训练包含两阶段：前 `--warmup-epochs` 冻结 image/text backbone，之后进入微调阶段（可用 `--finetune-image-scope`、`--finetune-text-last-n`、`--lr-image`、`--lr-text` 控制）。
+
+### 快速自测：随机生成一份“原始三模态”数据
+
+生成数据（会生成 `manifest.csv`、`labs_table.csv`、多张超声 png、病历 txt）：
+
+```bash
+python -m omnifuse.tools.make_synth_raw_manifest --out-dir data_synth_raw --n 60
+```
+
+用离线可跑的文本编码器（不下载 BERT）跑通训练：
+
+```bash
+python -m omnifuse.train_raw_manifest --manifest data_synth_raw\\manifest.csv --num-classes 3 \
+	--labs-table data_synth_raw\\labs_table.csv --text-encoder simple --no-pretrained-image --epochs 1 --seed 42 --out-dir runs\\demo
+```
+
+如果你在 PowerShell 里运行，推荐用分号串起来并明确写出相对路径（避免复制出 `http://_vscodecontentref_`）：
+
+```powershell
+conda activate classical_model; python -m omnifuse.train_raw_manifest --manifest data_synth_raw\manifest.csv --num-classes 3 --labs-table data_synth_raw\labs_table.csv --text-encoder simple --no-pretrained-image --epochs 50 --seed 42 --out-dir runs\seed42_e50
+```
+
+如果你要直接用 BERT（需要安装/下载模型）：
+
+```powershell
+conda activate classical_model; python -m omnifuse.train_raw_manifest --manifest data_synth_raw\manifest.csv --num-classes 3 --labs-table data_synth_raw\labs_table.csv --text-encoder hf --text-model bert-base-chinese --no-pretrained-image --epochs 50 --seed 42 --out-dir runs\seed42_e50_hf
 ```
 
 ## 代码结构

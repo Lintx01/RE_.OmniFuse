@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+import hashlib
+
 import torch
 import torch.nn as nn
 
@@ -134,10 +136,58 @@ class HFTextEncoder(nn.Module):
         batch = {k: v.to(device) for k, v in batch.items()}
         out = self.model(**batch)
 
-        # Prefer pooler_output if exists, else CLS
-        pooled = getattr(out, "pooler_output", None)
-        if pooled is None:
-            pooled = out.last_hidden_state[:, 0]
+        # Mean pooling over tokens using attention_mask
+        last = out.last_hidden_state  # [B, T, H]
+        attn = batch.get("attention_mask")
+        if attn is None:
+            pooled = last.mean(dim=1)
+        else:
+            m = attn.to(dtype=last.dtype).unsqueeze(-1)  # [B, T, 1]
+            denom = m.sum(dim=1).clamp(min=1.0)
+            pooled = (last * m).sum(dim=1) / denom
 
         emb = self.proj(pooled)
         return TextEncoderOutput(embedding=emb)
+
+
+class SimpleHashTextEncoder(nn.Module):
+    """A tiny text encoder that doesn't require external models.
+
+    It hashes tokens into a fixed vocab, embeds them, and averages per sample.
+    Useful for quickly verifying the end-to-end pipeline without downloading BERT.
+    """
+
+    def __init__(self, out_dim: int = 128, vocab_size: int = 5000, dropout: float = 0.0):
+        super().__init__()
+        self.vocab_size = vocab_size
+        self.emb = nn.Embedding(vocab_size, out_dim)
+        self.dropout = nn.Dropout(dropout)
+
+    @staticmethod
+    def _tokenize(text: str) -> list[str]:
+        t = (text or "").strip()
+        if t == "":
+            return []
+        # simple whitespace split; if no spaces, fall back to character tokens
+        toks = t.split()
+        if len(toks) <= 1:
+            toks = list(t)
+        return toks
+
+    def _hash_token(self, token: str) -> int:
+        h = hashlib.md5(token.encode("utf-8")).hexdigest()
+        return int(h, 16) % self.vocab_size
+
+    def forward(self, text_list: list[str]) -> TextEncoderOutput:
+        device = next(self.parameters()).device
+        batch_embs = []
+        for text in text_list:
+            toks = self._tokenize(text)
+            if len(toks) == 0:
+                batch_embs.append(torch.zeros(self.emb.embedding_dim, device=device))
+                continue
+            idx = torch.tensor([self._hash_token(t) for t in toks], device=device, dtype=torch.long)
+            e = self.emb(idx)  # [T, D]
+            e = self.dropout(e)
+            batch_embs.append(e.mean(dim=0))
+        return TextEncoderOutput(embedding=torch.stack(batch_embs, dim=0))

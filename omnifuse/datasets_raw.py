@@ -6,6 +6,8 @@ import os
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
+from pathlib import Path
+
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -121,9 +123,15 @@ class RawTriModalManifestDataset(Dataset):
 
         self._labs_table: Optional[Dict[str, np.ndarray]] = None
         if labs_table_csv is not None:
-            labs_table_path = labs_table_csv
-            if not os.path.isabs(labs_table_path):
-                labs_table_path = os.path.join(self.base_dir, labs_table_path)
+            p0 = Path(labs_table_csv)
+            if p0.is_absolute() and p0.exists():
+                labs_table_path = str(p0)
+            elif p0.exists():
+                # relative to current working directory
+                labs_table_path = str(p0.resolve())
+            else:
+                # relative to manifest directory
+                labs_table_path = str((Path(self.base_dir) / p0).resolve())
             self._labs_table, self.labs_dim = self._load_labs_table(
                 labs_table_path, labs_id_col=labs_id_col, labs_feature_cols=labs_feature_cols
             )
@@ -172,7 +180,8 @@ class RawTriModalManifestDataset(Dataset):
 
         self.image_tf = T.Compose(
             [
-                T.Resize((image_size, image_size)),
+                T.Resize(image_size),
+                T.CenterCrop(image_size),
                 T.ToTensor(),
                 # ImageNet normalization (works fine as a default)
                 T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
