@@ -1,0 +1,1669 @@
+
+=== 第 1 页 ===
+Information Fusion 117 (2025) 102890
+ContentslistsavailableatScienceDirect
+InformationFusion
+journalhomepage:www.elsevier.com/locate/inffus
+OmniFuse:Ageneralmodalityfusionframeworkformulti-modalitylearning
+onlow-qualitymedicaldata
+YixuanWua ,JintaiChenb,∗,LiantingHuc,HongxiaXua,HuiyingLiangd,e,∗∗,JianWua,∗∗∗
+aStateKeyLaboratoryofTransvascularImplantationDevicesofTheSecondAffiliatedHospitalSchoolofMedicineandSchoolofPublicHealthandLiangzhu
+Laboratory,ZhejiangUniversity,Hangzhou,China
+bAIThrust,InformationHub,HKUST(Guangzhou),Guangzhou,China
+cTheDataCenter,WuhanChildren’sHospital(WuhanMaternalandChildHealthcareHospital),TongjiMedicalCollege,HuazhongUniversityofScienceand
+Technology,Wuhan,China
+dMedicalBigDataCenter,GuangdongProvincialPeople’sHospital(GuangdongAcademyofMedicalSciences),SouthernMedicalUniversity,Guangzhou,China
+eGuangdongProvincialKeyLaboratoryofArtificialIntelligenceinMedicalImageAnalysisandApplication,GuangdongProvincialPeople’sHospital(Guangdong
+AcademyofMedicalSciences),Guangzhou,China
+A R T I C L E I N F O A B S T R A C T
+MSC: Mirroringthepracticeofhumanmedicalexperts,theintegrationofdiversemedicalexaminationmodalities
+62P10 enhancestheperformanceofpredictivemodelsinclinicalsettings.However,traditionalmulti-modallearning
+Keywords: systems face significant challenges when dealing with low-quality medical data, which is common due to
+Multi-modalfusion factors such as inconsistent data collection across multiple sites and varying sensor resolutions, as well as
+Low-qualitymedicaldata information loss due to poor data management. To address these issues, in this paper, we identify and
+Dataimputation explore three core technical challenges surrounding multi-modal learning on low-quality medical data: (i)
+the absence of informative modalities, (ii) imbalanced clinically useful information across modalities, and
+(iii) the entanglement of valuable information with noise in the data. To fully harness the potential of
+multi-modal low-quality data for automated high-precision disease diagnosis, we propose a general medical
+multi-modality learning framework that addresses these three core challenges on varying medical scenarios
+involving multiple modalities. To compensate for the absence of informative modalities, we utilize existing
+modalitiestoselectivelyintegratevaluableinformationandthenperformimputation,whichiseffectiveeven
+in extreme absence scenarios. For the issue of modality information imbalance, we explicitly quantify the
+relationshipsbetweendifferentmodalitiesforindividualsamples,ensuringthattheeffectiveinformationfrom
+advantageous modalities is fully utilized. Moreover, to mitigate the conflation of information with noise,
+ourframeworktraceablyidentifiesandactivateslazymodalitycombinationstoeliminatenoiseandenhance
+data quality. Extensive experiments demonstrate the superiority and broad applicability of our framework.
+In predicting in-hospital mortality using joint EHR, Chest X-ray, and Report dara, our framework surpasses
+existing methods, improving the AUROC from 0.811 to 0.872. When applied to lung cancer pathological
+subtypingusingPET,CT,andReportdata,ourapproachachievesanimpressiveAUROCof0.894.
+1. Introduction a coherent understanding of events. With advancements in sensory
+technology [1,2], we can now easily gather diverse forms of data for
+Our perception of the world relies on multiple sensory modali- analysis. To fully harness the value of each modality, multimodal fusion
+ties such as touch, sight, hearing, smell, and taste. Even when some has emerged as a promising approach to achieve precise and reliable
+sensory signals are unreliable, humans are adept at extracting useful predictions by integrating all available cues for downstream analytical
+information from imperfect multimodal inputs, thereby constructing
+tasks [3–8].
+∗ Corresponding author.
+∗∗ Corresponding author at: Medical Big Data Center, Guangdong Provincial People’s Hospital (Guangdong Academy of Medical Sciences), Southern Medical
+University, Guangzhou, China.
+∗∗∗ Correspondence to: State Key Laboratory of Transvascular Implantation Devices of The Second Affiliated Hospital, Zhejiang University School of
+Medicine, Hangzhou, China.
+E-mail addresses: wyx_chloe@zju.edu.com(Y. Wu),jtchen721@gmail.com(J. Chen),lianghuiying@hotmail.com(H. Liang),wujian2000@zju.edu.cn
+(J. Wu).
+https://doi.org/10.1016/j.inffus.2024.102890
+Received 16 August 2024; Received in revised form 23 November 2024; Accepted 16 December 2024
+Available online 24 December 2024
+1566-2535/© 2024 The Authors. Published by Elsevier B.V. This is an open access article under the CC BY license ( http://creativecommons.org/licenses/by/4.0/) .
+
+=== 第 2 页 ===
+Y. Wu et al. Information Fusion 117 (2025) 102890
+Fig. 1. Three major challenges in low-quality multimodal medical prediction scenarios: Incomplete multimodal data, imbalanced multimodal data, as well as noisy multimodal
+data. Our novel framework can simultaneously address these three challenges by performing missing imputation for any missing combination, quantifying relationships between
+modalities to determine their predictive contributions, and identifying and activating ‘‘lazy modalities’’.
+However, there is growing recognition that widely-used AI models models can be inferior to that of dominant uni-modal models. Our pre-
+are often misled by spurious correlations and biases present in low- liminary experiments inFig. 2also reveal that the predictive accuracy
+quality data. In real-world clinical settings, the quality of different of combined modalities is lower than that of single modality predic-
+modalities frequently varies due to factors such as inconsistent data tions. We define this phenomenon as ‘‘modality laziness’’ issue, where
+collection across sites, varying sensor resolutions, and data degradation simply combining multi-modal data without additional intervention
+or loss from poor data management. Recent empirical and theoretical leads to a significant degradation in performance.
+studies have shown that conventional multimodal fusion techniques (3)Noisy multimodal data.Another underlying reason contribut-
+often struggle with low-quality data, especially when faced with issues ing to the ‘‘modality laziness’’ issue is the intermixing of noise within
+like missing, imbalanced, or noisy data [9–11]. Crucially, there is no certain uninformative modalities. High-dimensional multimodal data
+existing framework that addresses these challenges — missing, imbal- tend to contain complex noise. In the process of collecting medical
+anced, and noisy data — within a single, unified approach. Current data, it is easy to include noise, such as metal artifacts produced during
+methods are typically designed to handle one specific issue, lacking medical imaging. When noise becomes interwoven with the effective
+a comprehensive strategy that can adaptively manage all three (see information from these modalities, it hinders the predictive power of
+Fig. 1). This limitation hinders their practicality in the complex and the valuable information, ultimately degrading the overall prediction
+variable conditions encountered in real-world medical applications. performance.
+To address these limitations and advance robust and generalized Toward addressing these increasingly important but sometimes
+multimodal learning in clinical applications, we identify three char- overlooked issue of ‘‘modality laziness’’ in multimodal fusion, this
+acteristics of low-quality multimodal data and focus on the unique paper proposes a traceable prediction framework for low-quality med-
+challenges inherent in multimodal machine fusion for disease diagnosis ical data in a dynamic trustworthy fusion manner. A key feature of
+and prediction: our framework is its capability to handle any extreme combination
+(1) Incomplete multimodal data. Medical data often experience of missing modalities. Moreover, our proposed framework introduces
+intermittent absence or incompleteness of some modalities [9]. Due an innovative adaptive modal fusion technique, Dynamic Weighted
+to the variability in patient conditions, not all diagnostic tests are Fuse (DWFuse), based on the explicit quantification of the relation-
+performed for every patient, leading to extreme cases of modality ships between different modalities. This approach ensures that the
+missingness. Moreover, patients even with the same disease may choose effective information from the advantageous modalities is fully utilized
+different medical examinations producing incomplete multimodal data. for specific samples. Additionally, we incorporate a novel training
+Traditionally, multimodal learning systems have struggled with the ab- strategy, Traceble Laziness Activation (TLA), for traceably mining the
+sence of one or more modalities, often relying on static data imputation lazy modality combinations and activate the lazy ones at a granular
+then fusion methods that do not account for the dynamic nature of data level. This allows for the explicit identification and activation of ‘‘lazy
+streams of specific patient sample in real clinical applications. modalities’’, thereby unleashing the potential of multi-modal data
+(2)Imbalanced multimodal data.Compared to other domains like sources for achieving high-precision disease prediction.
+remote sensing [12], where different modalities (e.g., various types The experimental validation of our framework across diverse
+of images) have relatively small modality gaps, medical multimodal datasets, such as MIMIC-III [13] and MIMIC-IV [14] for CXR images,
+data encompass a broader range of modality gaps, including images clinical reports, and structured EHR modalities, along with a propri-
+(e.g., CT, MRI, X-ray), structured data (e.g., EHR), and unstructured etary lung cancer pathological subtyping prediction dataset for CT and
+textual data (e.g., clinical reports). This kind of imbalance results in the PET images and clinical reports. These datasets encompass a variety
+problem of imbalanced clinically useful information across modalities, of modalities (e.g., X-ray, CT, PET, textual reports, and EHR) and
+making it challenging to quantify the contribution of each modality languages (e.g., English and Chinese clinical reports), demonstrating
+during fusion to the predictive outcome. This often leads to a coun- the robustness, versatility, and generalizability of our framework across
+terintuitive fact that the performance of multi-modal fusion predictive different data types and linguistic contexts. The framework’s capability
+2
+
+=== 第 3 页 ===
+Y. Wu et al. Information Fusion 117 (2025) 102890
+Fig. 2. Performance of the uni-modality, fused multi-modality in a concatenated manner, and fused multi-modality with our proposed DWFuse module on the validation set of the
+in-hospital mortality prediction task. (a) One can see that the dominated uni-modality is EHR modality, while fusing all modalities by concatenation leads to inferior performance.
+(b) When utilizing our proposed DWFuse module, the performance of multi-modality prediction is better than single dominated modality.
+to dynamically adapt to evolving data scenarios and provide traceable, augmentation. Learning-objective-based methods [28] introduce addi-
+reliable predictive outputs positions it as a valuable tool in advancing tional loss functions to counteract the model’s modality preference.
+multimodal learning. Optimization-based methods [32] concentrate on the back-propagation
+stage, adjusting the magnitude and direction of unimodal gradients to
+2. Related work enhance the learning of lower-quality modalities. Data-augmentation-
+based methods [30,33,34] aim to improve the lower-quality modalities
+2.1. Incomplete multimodal learning
+at the data input stage by enhancing their information content. How-
+ever, many existing methods require the introduction of additional
+neural modules, which significantly complicates the training process
+In real-world clinical applications, collected multimodal data are
+and increases computational demands. This added complexity often
+often incomplete, with some patients missing certain modalities [9,15–
+makes these methods impractical, especially in resource-constrained
+17]. For example, in Alzheimer’s Disease diagnosis [15], although
+settings like healthcare. Additionally, data-augmentation-based meth-
+combining data from multiple modalities, such as magnetic resonance
+ods are also not immune to these challenges, as their effectiveness is
+imaging (MRI) scans, positron emission tomography (PET) scans, and
+heavily dependent on the initial quality of the data. If the original
+cerebrospinal fluid (CSF) information, can enhance diagnostic accu-
+data is highly degraded, augmentation efforts may fail to produce
+racy, the high cost of PET scans and the invasive nature of CSF tests
+meaningful improvements. Furthermore, such methods risk introduc-
+may lead some patients to decline these examinations. From the per-
+ing artificial biases, as augmentation can create unrealistic patterns
+spective of handling missing data, existing methods can be categorized or artifacts that ultimately degrade the model’s ability to generalize
+into two groups: imputation-based [18–23] and imputation-free [24– effectively to real-world cases.
+27] incomplete multimodal learning. Imputation-based methods often
+employ techniques like zero imputation [20] and mean value im- 2.3. Noisy multimodal learning
+putation [21] in the early stages. Additionally, many learning-based
+imputation methods [22,23] have been developed to fill in missing In real-world scenarios, collecting high-quality multimodal data is
+modalities for specific tasks and samples. However, these methods often inherently challenging due to the inevitable presence of noise [11,35–
+lead to biased results due to the lack of reliable information, and the 37]. This multimodal noise can be broadly categorized based on its
+imputed values may degrade model performance rather than improve source: (1) modality-specific noise [37–40], which results from issues
+it, particularly in complex medical scenarios. Moreover, imputation- like sensor errors, environmental factors, or transmission errors specific
+based methods are generally unsuitable for extreme missing scenarios, to each modality. For example, in medical imaging, electronic noise
+where performance tends to deteriorate significantly. On the other in sensors can lead to loss of detail, and metal artifacts are often
+hand, imputation-free methods focus solely on leveraging the informa- present [41]. (2) Cross-modal noise [42–46], which arises from weakly
+tion from available modalities without attempting to fill in the missing aligned or unaligned multimodal pairs and can be considered semantic-
+data. While this avoids the biases associated with imputation, these level noise. In medical contexts, this misalignment occurs naturally
+methods still struggle to fully leverage the partial information and often because data from different modalities are often captured at differ-
+lack the ability to dynamically adapt to situations with missing data, ent times while the patient’s condition evolves [14,47]. Fortunately,
+limiting their overall effectiveness. leveraging the correlations between multiple modalities or optimizing
+the utilization of multimodal data can significantly aid in the effective
+fusion of noisy data. By exploiting inter-modal correlations, multimodal
+2.2. Imbalanced multimodal learning
+data can identify and mitigate potential noise, thereby enhancing the
+overall data quality and predictive accuracy [36,48]. However, a key
+Recent studies have highlighted the challenge of imbalanced multi-
+shortcoming of methods leveraging modal correlations is their reliance
+modal learning [10,28–30], where multimodal models often prioritize
+on the assumption that data from all modalities are complete. In real-
+specific modalities, limiting their overall performance. This imbalance
+world scenarios, missing data is common, which prevents the model
+arises because each modality has unique data sources and forms, lead-
+from accurately capturing cross-modal relationships. This limits the
+ing to varying quality levels. Some modalities provide richer, more effectiveness of correlation-based fusion, leading to unreliable noise
+direct information, while others offer less. Given the greedy nature of reduction and suboptimal predictive performance when modalities are
+deep neural networks [30], multimodal models tend to rely heavily on incomplete.
+the high-quality modalities with sufficient target-related information,
+neglecting the less informative ones. It is worth noting that in practical 2.4. Multi-modal fusion in medical scenarios
+clinical scenarios, the quality of each modality dynamically changes
+with respect to different patients and tasks [31]. To address this issue, Several studies [16,17,49–55] have investigated the fusion of multi-
+various methods have been proposed [10,28,29], focusing on different modal medical data for various applications. While these studies high-
+aspects such as learning objectives, optimization processes, and data light the positive impact of using multiple modalities on downstream
+3
+
+=== 第 4 页 ===
+Y. Wu et al. Information Fusion 117 (2025) 102890
+Fig. 3. Overview of the proposed network architecture: (a) Training stage: Inputs with arbitrary missing modality patterns are first encoded using modality-specific encoders, which
+are then fed into an imputation network to perform forward imputation of the missing modalities. The completed modalities are dynamically weighted and fused for joint prediction.
+Additionally, the embeddings of the imputed missing modalities undergo backward imputation to regenerate the embeddings of the initially available modalities, thereby facilitating
+dual-direction supervision through cycle consistency. (b) Inference stage: Only forward imputation is performed to fill in the missing modalities, followed by joint prediction. (c)
+Our method can handle any combination of missing modalities. (d) Modality-specific encoder: Each modality is independently encoded to obtain its corresponding embeddings. (e)
+Dynamic weighted fuse: This component quantifies the relationships among imbalanced modalities, and dynamically weights and aggregates them.
+performance, many of them curate datasets for specific tasks and oper- 3.1. Problem formulation
+ate under the assumption that images and clinical features are paired.
+For instance, some works focus on tasks related to cancer recurrence Given a patient 𝑝, it has multiple information sources from dif-
+prediction [54], lesion detection [53], patient survival prediction [55], ferent modality inputs 𝑥𝑚, 𝑚 ∈ {1,…, 𝑀}, where 𝑀 is the number
+as well as predicting the progression of Alzheimer’s disease [16,17] of modalities. For example, we use 𝑥 = (𝑥𝑖𝑚𝑔, 𝑥𝑒ℎ𝑟, 𝑥𝑟𝑒𝑝) to represent
+and prognostication for COVID-19 patients [52]. Among them, Med- the raw input of three modalities, where 𝑥𝑖𝑚𝑔 represents the medical
+Fuse [50] and TriMF [51] are two studies closely related to our work.
+imaging modality,𝑥𝑒ℎ𝑟represents the modality of structured electronic
+MedFuse is an LSTM-based multimodal fusion method that integrates
+health record (ehr) data, and𝑥𝑟𝑒𝑝 represents the clinical textual report
+clinical time-series data with chest X-ray images. However, it is limited
+belonging to the same patient. We denote the patient’s disease as𝑦, 𝑦∈
+to two modalities — EHR and images — whereas our framework
+{1,…, 𝐶}, where𝐶 is the number of disease categories. Our proposed
+method aims to predict the disease category𝑦for every patient𝑝under
+incorporates an additional textual report modality, making it more gen-
+any combination of missing modality scenario.
+eralizable. Moreover, our approach demonstrates superior performance
+in MIMIC in-hospital mortality prediction, achieving an AUC score of
+3.2. Modality-specific encoders
+0.859 compared to 0.845 for MedFuse (as shown inTable 3). TriMF, on
+the other hand, introduces an efficient multimodal fusion architecture
+One of the primary sources of modality heterogeneity arises from
+designed to be robust to missing modalities. However, it uses an the fact that different modalities actually reside in different input and
+imputation-free fusion method, which often results in lower accuracy embedding spaces, posing challenges in devising a unified encoder
+in severe missing scenarios, as it can lead to data and prediction biases. capable of handling all modalities uniformly. Additionally, another
+In contrast to these methods, which are primarily evaluated on public distinguishing factor lies in the target space, as we do not presume
+datasets, our framework undergoes additional validation on a self- that each modality must be associated with the same set of labels.
+collected clinical dataset with Chinese textual reports, demonstrating Given these challenges, modality-specific encoders offer significant
+both its generalizability and applicability in real-world, multilingual advantages in terms of scalability and flexibility. By allowing the inde-
+medical settings. This evaluation underscores the robustness of our pendent addition of new modalities without affecting the performance
+approach across diverse data environments. of existing ones, this modular design ensures that new encoders can
+be trained specifically for each new data type. Consequently, we begin
+by establishing modality-specific encoders 𝑒𝑚 for each modality 𝑚
+3. Methodology
+individually to get the corresponding embeddings, as:
+𝑣𝑚=𝑒𝑚(𝑥𝑚), (1)
+We start this section by providing an overview of the proposed
+framework (seeFig. 3) and formulation of the research problem. Then where 𝑥𝑚 is the raw input of modality 𝑚, 𝑣𝑚 denotes the encoded
+we detail the structure of each module and the entire training pipeline. embeddings of modality𝑚.
+4
+
+=== 第 5 页 ===
+Y. Wu et al. Information Fusion 117 (2025) 102890
+Table 1 The training objective for missing modality imputation includes for-
+Th
+N
+e
+o .
+six modality m
+(A
+is
+v
+si
+a
+n
+i
+g
+la b
+sc
+le
+e
+,
+n a
+M
+r
+i
+i
+s
+o
+s
+s
+i n
+a
+g
+n
+)
+d their detaile
+D
+d
+if
+a
+f
+v
+e
+a
+re
+il
+n
+a
+t
+b l
+m
+e-
+i
+m
+ss
+i
+i
+s
+n
+s
+g
+in
+s
+g
+c e
+p
+n
+a
+a
+ir
+r
+s
+io
+.
+s
+ward imputation loss𝐿
+𝑓 𝑜𝑟𝑤𝑎𝑟𝑑
+and backward imputation loss𝐿
+𝑏𝑎𝑐 𝑘𝑤𝑎𝑟𝑑
+:
+1 (𝑥img),(𝑥ehr, 𝑥rep) (𝑥img, 𝑥ehr, 𝑥rep),(𝑥img, 𝑥ehr, 𝑥rep)
+𝐿
+𝑓 𝑜𝑟𝑤𝑎𝑟𝑑
+=‖
+‖
+𝑣′−𝑣‖
+‖
+2
+2
+, (7)
+2 (𝑥ehr),(𝑥img, 𝑥rep) (𝑥i m m i g ss , 𝑥 m eh is r s , 𝑥r m m e i p i s s s s ),(𝑥i m m i g ss , 𝑥e m h i r ss , 𝑥rep) 𝐿 𝑏𝑎𝑐 𝑘𝑤𝑎𝑟𝑑 =‖ ‖ 𝑣−𝑣′′‖ ‖ 2 2 , (8)
+3 (𝑥rep),(𝑥img, 𝑥ehr) (𝑥img, 𝑥ehr, 𝑥rep),(𝑥img, 𝑥ehr, 𝑥rep) where𝑣′and𝑣′′are imputed embeddings in the forward and backward
+miss miss miss
+4 (𝑥img, 𝑥ehr),(𝑥rep) (𝑥img, 𝑥ehr, 𝑥rep),(𝑥img, 𝑥ehr, 𝑥rep) imputation process, respectively. 𝑣 is the ground-truth embeddings
+miss miss miss
+5 (𝑥img, 𝑥rep),(𝑥ehr) (𝑥img, 𝑥ehr, 𝑥rep),(𝑥img, 𝑥ehr, 𝑥rep) extracted by corresponding modality-specific encoder.
+miss miss miss
+6 (𝑥ehr, 𝑥rep),(𝑥img) (𝑥img, 𝑥ehr, 𝑥rep),(𝑥img, 𝑥ehr, 𝑥rep)
+miss miss miss 3.4. Dynamic weighted fuse
+In traditional multimodal prediction methods, all modalities are
+3.3. Missing modality imputation typically aggregated without considering their individual contributions.
+However, our observations indicate that not all modalities are equally
+In medical scenarios, the issue of missing data is both prevalent and influential in the prediction process for a specific patient. Specifically,
+significant. Even for the same disease, different clinicians may order within the low-quality data of different modalities for specific patients,
+distinct diagnostic tests, leading to varied data sources. Nevertheless, there exist key modalities that are informative, neutral modalities
+we posit that there exist underlying connections between modalities, that are less informative, and lazy modalities that even hinder the
+which collectively reflect a patient’s health status and disease progres- predictive performance. Our pre-experiments in Fig. 2 imply that the
+sion. Based on this hypothesis, we introduce an imputation module for inclusion of lazy modalities without any intervention can result in
+missing modalities, designed to infer the embeddings of unavailable significant performance degradation.
+modalities from those of available ones. A notable advantage of our To mitigate the hindrance caused by lazy modalities, we introduce
+approach is its adaptability to any extreme modality missing situation, a mechanism, Dynamic Weighted Fuse (DWFuse), that reduces their
+as summarized inTable 1. influence by down-weighting their contribution when more informative
+As shown in Fig. 3, the input consists a concatenated triplet for- modalities are available for a given patient. This ensures that the
+mat of both available modalities and missing modalities. The multi- lazy modalities do not interfere with the predictive guidance of the
+modal embeddings of these cross-modality triplet can be represented key modalities. A modality is deemed reliable (or unreliable) based
+as (taking the EHR modality missing condition as an example): on whether it assigns a high (or low) probability to the correct cate-
+gory, with higher probabilities indicating more informative signals and
+𝑣=concat(𝑣𝑖𝑚𝑔, 𝑣𝑒 𝑚 ℎ 𝑖𝑠 𝑟 𝑠 , 𝑣𝑟𝑒𝑝), (2) greater confidence. Therefore, we define a down-weighting factor,𝜔 𝑖 ,
+𝑣̂=concat(𝑣𝑖𝑚𝑔, 𝑣𝑒ℎ𝑟, 𝑣𝑟𝑒𝑝 ), (3) to dynamically adjust each modality’s contribution by considering the
+𝑚𝑖𝑠𝑠 𝑚𝑖𝑠𝑠
+confidence levels of other modalities, as follows:
+where𝑣𝑖𝑚𝑔,𝑣𝑒ℎ𝑟 , and𝑣𝑟𝑒𝑝 represent the modality-specific embedding
+when th
+𝑚
+e
+𝑖 𝑠
+c
+𝑠
+orr
+𝑚
+e
+𝑖
+s
+𝑠
+p
+𝑠
+onding
+𝑚
+m
+𝑖𝑠𝑠
+odality is missing, which is produced by the
+𝑝𝑚=𝑔𝑚(𝑣𝑚), (9)
+corresponding modality encoder with input zero vectors. 𝜔𝑚= [
+∏
+(1 −𝑝𝑛)]𝛽∕(𝑀−1), (10)
+Specifically, we utilize the Cascade Residual Autoencoder (CRA) 𝑛≠𝑚
+structure, which surpasses the standard autoencoder in learning ca- where𝑔𝑚(⋅)denotes the disease classifier for modality𝑚that consists of
+pacity and stability, the module integrates a sequence of Residual several fully-connected layers, and𝑝𝑚 is the prediction of modality𝑚.
+Autoencoders (RAs) for enhanced representation learning. To further 𝑀 is the number of modalities, and𝛽is a hyperparameter determining
+enhance the model, we incorporate cycle consistency learning within a the down-weighting intensity and are chosen by cross-validation. 𝛽
+dual-network architecture to enable bidirectional forward (from avail- controls the suppression strength: higher values intensify the effect,
+able to missing modalities) and backward (from missing to available and vice versa. This scaling factor𝜔𝑚represents the average prediction
+modalities). The primary reason for utilizing cycle consistency learning quality of the remaining modalities𝑛(𝑛≠𝑚). This factor approaches 0
+within our dual-network architecture is to ensure consistency and as some 𝑝 approach 1, indicating when other modalities (excluding
+𝑛
+reliability when imputing missing modalities. Specifically, a CRA model modality 𝑚) confidently predict the correct category, thereby mini-
+comprising𝐾 RAs, denoted as𝜑 for𝑘= 1,…, 𝐾. For𝑘 >1, each RA’s mizing the cost on the current modality (𝑝 ). This approach ensures
+𝑘 𝑚
+output,𝛥𝑧 , is iteratively refined by adding the cumulative outputs of that modality weighting responds to the multimodal context rather
+𝑘
+preceding RAs to the input: than being fixed on a predefined accuracy metric, enhancing prediction
+{ 𝛥𝑧 =𝜑 (𝑣), 𝑘= 1, robustness.
+𝛥𝑧 𝑘 =𝜑 𝑘( 𝑣+ ∑𝑘−1𝛥𝑧 ) , 𝑘 >1. (4) We also collect the latent vectors of each autoencoder in the for-
+𝑘 𝑘 𝑗=1 𝑗 ward imputation module and concatenate them together to form the
+In this context, 𝑣 represents the cross-modality triplet embedding de- joint multimodal embedding, which inherently captures interactions
+rived from available modalities. Taking the scenario where the EHR between modalities. This joint embedding is designed to facilitate
+modality is absent while the IMG and REP modalities are available, as cross-modal information interaction by integrating shared information
+an example, the forward imputation predicts the missing EHR modal- while preserving individual modality-specific details. Based on the joint
+ity’s embedding from IMG and REP modalities. The generated forward multimodal embedding, we calculate the joint probability distribution
+imputation embedding,𝑣′, is the sum of𝑣and the outputs of all RAs. 𝑜as:
+The backward imputation then predicts the embedding of the available 𝑜=𝑔 (concat(𝑐 , 𝑐 ,…, 𝑐 )), (11)
+modalities i.e., IMG and REP,𝑣′′, from the forward imputed embedding, 𝑟𝑎 1 2 𝐾
+𝑣′: where𝑔 𝑟𝑎 (⋅)denotes the disease classifier for joint multimodal embed-
+𝑣′=forward(𝑣) =𝑣+
+∑ 𝐾
+𝛥𝑧 , (5)
+d
+𝑘
+i
+=
+ng
+{
+,
+1
+a
+,2
+n
+,
+d
+…
+𝑐 𝑘
+, 𝐾
+is
+} .
+the latent vector of the autoencoder in the 𝑘th RA,
+𝑘
+𝑘=1 Consequently, the training objective for predicting the correct dis-
+𝐾 ease category is set as:
+∑
+𝑣′′=backward(𝑣′) =𝑣′+ 𝛥𝑧 𝑘 . (6) 𝑀
+∑
+𝑘=1 𝐿 = − 𝐻(𝜔𝑝, 𝑞), (12)
+𝑒𝑛𝑐 𝑖 𝑖
+𝑚=1
+5
+
+=== 第 6 页 ===
+Y. Wu et al. Information Fusion 117 (2025) 102890
+𝐿 = −𝐻(𝑜, 𝑞), (13) 3.6. Training objective
+𝑟𝑎
+𝐿
+𝐷 𝑊 𝐹 𝑢𝑠𝑒
+=𝐿
+𝑒𝑛𝑐
++𝛼 𝐿
+𝑟𝑎
+, (14)
+We combine all the losses into the joint objective function as below
+where𝐻(⋅)is the CrossEntropy Loss,𝑞is the true distribution of disease to jointly optimize the model parameters:
+category label, and𝛼is the weighting hyperparameter for𝐿 𝑟𝑎 . 𝐿=𝐿 𝑓 𝑜𝑟𝑤𝑎𝑟𝑑 +𝜆 1 𝐿 𝑏𝑎𝑐 𝑘𝑤𝑎𝑟𝑑 +𝜆 2 𝐿 𝐷 𝑊 𝐹 𝑢𝑠𝑒 +𝜆 3 𝐿 𝑇 𝐿𝐴 , (18)
+where𝜆 ,𝜆 and𝜆 are weighting hyperparameters for each loss item.
+3.5. Traceable laziness activation
+1 2 3
+4. Experimental setup
+In the previous section of DWFuse, we dynamically mitigate the
+side effects of less informative modalities by leveraging their strengths. 4.1. Datasets and tasks
+However, we believe that the fundamental reason certain modalities ex-
+hibit ‘‘laziness’’ is due to their inherent noise, which may be introduced We employ two diverse multi-modal datasets to address three dis-
+during data generation or collection processes, such as metal artifacts in tinct clinical tasks. The datasets used are:
+medical imaging. This noise prevents the modality from fully realizing
+its predictive potential. Based on this, to unleash the potential of the
+• MIMIC III and IV Datasets[13,14]: Involvesin-hospital mortal-
+‘‘lazy modalities’’ and eliminate their noisy components, we propose a
+ity prediction and phenotype classification tasks. In-Hospital
+Mortality Prediction is a binary classification task aimed at pre-
+Traceable Laziness Activation (TLA) training strategy. This strategy first
+dicting in-hospital mortality after the first 48 h of an ICU ad-
+identifies the combinations of lazy modalities and then activates them.
+mission. Phenotype Classification is a multi-label classification
+Assuming there are a total of𝑀 modalities, there are2𝑀− 1possible
+task to predict the presence of 25 chronic, mixed, and acute care
+modality combinations, denoted as = {𝛿 ∣𝑖∈ 2𝑀 − 1}. Specifically,
+𝑖 conditions.
+TLA first proposes a contrastive ranking strategy to mine the lazy • Lung Cancer Pathological Subtyping Dataset: Involves a multi-
+modality combinations 𝛿
+lazy
+. Compared to simply taking the single
+class classification task forlung cancer pathological subtyping.
+modality as the lazy one, our method takes a more comprehensive
+The pathological subtypes of lung cancer include six categories:
+approach by considering combinations of multiple modalities, leading
+Atypical Adenomatous Hyperplasia (AAH), Adenocarcinoma In
+to more precise and context-aware mining of underperforming modality
+Situ (AIS), Minimally Invasive Adenocarcinoma (MIA), Invasive
+groups. This combination-based strategy enables TLA to better capture Adenocarcinoma (IA) Grade 1, IA Grade 2, and IA Grade 3.
+the interactions and dependencies between modalities, ensuring a more Clinically, the risk of invasion is classified as low (L1: AAH,
+effective activation of lazy modality combinations. Then, TLA calcu- AIS), moderate (L2: MIA, IA Grade 1), and high (L3: IA Grade
+lates the prediction loss for the lazy modality combinations, guiding 2, IA Grade 3). The goal is to classify lung cancer subtypes into
+the network to pay more attention to them. The process consists of two different levels of invasiveness (low, moderate, or high risk).
+steps: (a) mining the lazy modality combination, and (b) calculating
+𝐿
+ac
+𝑇
+h
+𝐿
+i
+𝐴
+ev
+t
+i
+o
+n g
+a
+l
+p
+a
+p
+z
+l
+i
+y
+n e
+t
+s
+a
+s
+r g
+a
+e
+c
+t
+t
+e
+iv
+d
+a t
+r
+i
+e
+o
+g
+n
+u
+.
+larization on the lazy modality, thereby
+4.2. Data preprocessing
+(a) Laziness Combination Mining. This step is based on the as-
+4.2.1. MIMIC dataset preprocessing
+sumption that DNNs tend to first memorize simple and informative
+For MIMIC, we utilize electronic health record (EHR) data from
+examples before overfitting hard and noisy examples. Therefore, we
+the MIMIC-III database, along with chest X-ray images and their corre-
+first mine the strong modality via this memorization effect. Then we
+sponding radiology reports from the MIMIC-CXR dataset. The matching
+determine the remaining combinations of modalities as the lazy ones.
+of EHR and CXR data is based on ‘stay_id’, which uniquely identifies
+Specifically, after each training epoch, compute the predicted output
+specific hospital stays, allowing the association of corresponding X-rays
+𝑦̂
+𝑖
+for each modality combination 𝛿
+𝑖
+, 𝑖 ∈ 2𝑀 − 1, and subsequently
+with those stays. Initially, ‘subject_id’, the unique patient identifier, is
+calculate their distances from the ground truth label𝑦. Given that the
+used to merge datasets and group records by individual patients. Be-
+neural networks tend to initially memorize samples featuring strong sides, for REP and CXR image matching, both ‘subject_id’ and ‘study_id’
+modalities, the modality combination𝛿 𝑖 exhibiting the greatest distance are used to establish a direct correspondence between radiology reports
+from𝑦can be identified as the lazy modality combination. To enhance and X-ray images.
+the robustness of lazy modality combinations against neural network For the electronic health record (EHR) modality, we utilize an
+learning randomness, TLA first computes sample-wise distances then identical set of 17 clinical variables as employed in prior work [50].
+integrates them into the combination-wise distances, as: They include five categorical variables and twelve continuous variables.
+(
+∑
+)
+The categorical variables are: capillary refill rate, Glasgow Coma Scale
+𝛿
+lazy
+= ar g max 𝐷(𝑦̂
+𝑖
+, 𝑦) . (15)
+eye opening, Glasgow Coma Scale motor response, Glasgow Coma Scale
+𝛿𝑖
+𝑖
+verbal response, and Glasgow Coma Scale total score. The continuous
+variables include: diastolic blood pressure, fraction of inspired oxygen,
+(b) Laziness Activation. First, we calculate the lazy combination
+glucose level, heart rate, height, mean blood pressure, oxygen satu-
+mask𝑀 𝑎𝑠𝑘∈R𝑏, as:
+ration, respiratory rate, systolic blood pressure, temperature, weight,
+{
+𝑀 𝑎𝑠𝑘(𝑠) = FALSE, if𝛿 𝑖 (𝑠)≠𝛿 lazy (16) and pH. To ensure consistency and maintain a comparable input across
+TRUE, if𝛿(𝑠) =𝛿 patients, all clinical variables are sampled at two-hour intervals. For
+𝑖 lazy
+categorical features, one-hot encoding is employed, transforming each
+where𝑏is the batch size,𝑠is the index of patient𝑝
+𝑠
+,𝑠∈ [0, 𝑏− 1], and
+category into a binary vector representation. Continuous variables are
+𝛿
+𝑖
+(𝑠)is the modality combination for the𝑠th patient in this mini-batch.
+standardized by subtracting the mean and dividing by the standard
+Then, the𝐿 𝑇 𝐿𝐴 is defined as follows: deviation. After pre-processing and encoding, the EHR modality is
+𝐿
+𝑇 𝐿𝐴
+=𝐻(𝑦̂[𝑀 𝑎𝑠𝑘], 𝑦[𝑀 𝑎𝑠𝑘]), (17) represented as a vector of size 76 for each time step.
+Regarding the radiology report (REP) modality, the ‘‘Findings’’ sec-
+where 𝐻(⋅) is the CrossEntropy Loss, 𝑦 is the ground truth label for tions in these reports provide detailed textual descriptions of the ob-
+predicted label𝑦̂. The[⋅]operator denotes the index operator. servations made by radiologists. The length of these sections varies
+6
+
+=== 第 7 页 ===
+Y. Wu et al. Information Fusion 117 (2025) 102890
+between 10 and 280 words across samples. Through a series of ex- Table 2
+periments, we determine that truncating or padding the reports to a Dominated uni-modal models consistently outperform the multi-modal models (concate-
+uniform length of 150 words (99.35% of the reports have fewer than
+nated fusion) for all three different tasks.
+150 words). For text embedding, we use the bert-base-uncased In-hospital mortality
+model from BERT [56], utilizing the pre-trained version without task- Multi-modality AUROC Dominated uni-modality AUROC Drop
+specific fine-tuning, and each token in the report is converted into a EHR+CXR+REP 0.811 EHR 0.828 −0.017
+768-dimensional vector. EHR+REP 0.817 EHR 0.828 −0.011
+For the chest radiographs (CXR), we first resize all images to a fixed
+EHR+CXR 0.819 EHR 0.828 −0.009
+CXR+REP 0.724 CXR 0.741 −0.017
+size of 224 × 224 pixels to standardize the input across the dataset
+and replicate each image across three channels. Then, we employ a
+Phenotyping
+ResNet34 [57] convolutional neural network to extract relevant fea- Multi-modality AUROC Dominated uni-modality AUROC Drop
+tures from the resized images. After the average pooling layer of the EHR+CXR+REP 0.696 EHR 0.714 −0.018
+convolutional network where n=512, the extracted features are then EHR+REP 0.694 EHR 0.714 −0.020
+used as the input representation for the image modality.
+EHR+CXR 0.701 EHR 0.714 −0.013
+CXR+REP 0.654 CXR 0.664 −0.010
+4.2.2. Lung cancer pathological subtyping dataset preprocessing
+Pathological subtyping
+For lung cancer pathological subtyping dataset, it includes clinical Multi-modality AUROC Dominated uni-modality AUROC Drop
+textual report (REP), PET and CT imaging sequences. CT+PET+REP 0.812 CT 0.833 −0.021
+The clinical textual report (REP) includes patient-specific informa- CT+PET 0.815 CT 0.833 −0.018
+tion such as personal history, past medical history, surgical history,
+CT+REP 0.822 CT 0.833 −0.011
+PET+REP 0.787 REP 0.803 −0.016
+physical examination details, diagnostic basis, and surgical indications.
+We concatenate all these textual inputs to form a unified report (REP)
+modality, which serves as a comprehensive summary of the patient’s
+clinical background. The text is encoded usingbert-base-chinese training stage to alleviate suppression from the dominant modality
+for effective representation of the Chinese language medical reports. and prevent premature convergence. MedFuse is an LSTM-based multi-
+The length of the clinical texts ranges from 996 to 1748 characters, modal fusion method. To deepen the comparative analysis, we ensure
+with the 89.27% samples having a length between 1400 and 1600 that the hyperparameter settings for each method are configured to the
+characters. Given the relatively consistent length, we set the maximum best values reported in their respective original papers. Furthermore,
+sequence length to 1748 characters and pad shorter texts accordingly, except for the substituted fusion method, all other configurations of
+and each token in the report is converted to a 768-dimensional vector. our framework remain consistent across experiments to ensure a fair
+comparison.
+PET and CT imaging sequences are sliced along the 𝑧-axis to gen-
+erate 2D slices, and each 2D slice is resized to 224 × 224 pixels 5. Results and analysis
+before being fed into the model. For feature extraction, we utilize the
+ResNet34 architecture, similar to the approach used for MIMIC-CXR. 5.1. Modality laziness incurs the failure of multimodal model
+The PET and CT slices are treated as separate modalities, allowing the
+model to learn distinct yet complementary features from both types of In the quest to leverage diverse data types for enhanced model
+imaging.
+performance through multi-modal networks, an intriguing counterintu-
+itive phenomenon often emerges. Although theoretically, multi-modal
+4.3. Hyperparameter settings
+networks, which integrate multiple streams of input data, should sur-
+pass any uni-modal model due to their richer information set, practical
+The key hyperparameters in our framework include the number
+implementations frequently fall short. As shown in Table 2, in the
+of recurrent adapters (RAs) in the Missing Modality Imputation pro-
+task of in-hospital mortality prediction, integrating multi-modalities
+cess, the weighting strength for DWFuse (𝛼 , 𝛽), and the loss weights
+including electronic health records (EHR), radiographic images (CXR),
+(𝜆 , 𝜆 , 𝜆 ). Specifically, we set the number of RAs to 5, 𝛼 and 𝛽
+1 2 3 and textual clinical reports (REP) into a fused predictive model by
+to 0.1 and 0.5, and 𝜆 , 𝜆 , 𝜆 to 1, 10, and 0.5, respectively. The
+1 2 3 concatenating leads to the performance degradation, compared with
+selection process for these hyperparameters begins with leveraging
+the dominated uni-modal models. Similar results occur in the phenotyp-
+prior work’s experience, where we initialize hyperparameters based on
+ing prediction and pathological subtyping prediction tasks. This phe-
+values reported in similar studies. Then, we perform cross-validation
+and conduct a grid search over a range of potential values around the
+nomenon suggests the presence of ‘‘modality laziness’’, where certain
+initial settings. Finally, the values that achieve the best AUROC on the
+uninformative modalities in the multimodal model do not contribute
+respective validation set are selected.
+effectively to predictions, or even exert a negative influence due to
+noise. For example, in the MIMIC dataset, the EHR data often dominate,
+4.4. Comparison method
+overshadowing valuable insights that could potentially be derived from
+radiographic images and textual reports. This results in a significant
+We evaluate our framework against several baseline and state- underutilization of the multimodal data’s potential synergies.
+of-the-art multi-modal fusion methods, including Concatenate, Sum,
+SE-Gate, G-Blend, OGM-GE, PMR, and MedFuse. Concatenate involves 5.2. DWFuse mitigates the multimodal optimization dilemma
+concatenating the multimodal embeddings directly. Sum refers to sum-
+ming the multimodal embeddings. SE-Gate is based on Squeeze-and- The challenge of effectively leveraging the complementary strengths
+Excitation Networks, which use an attention mechanism to recalibrate of various modalities in a unified predictive model is addressed by our
+the importance of each modality. G-Blend is Gradient-Blending, which innovative fusion technique, Dynamic Weighted Fuse (DWFuse). This
+computes an optimal blending of modalities based on their overfitting module aims to address the issue of ‘‘modality laziness’’ by dynamically
+behaviors. OGM-GE uses on-the-fly gradient modulation to adaptively quantifying the relationships between multiple modalities for specific
+control the optimization of each modality by monitoring the discrep- instances. It leverages the strengths of the more informative modalities,
+ancy in their contributions towards the learning objective. PMR intro- allowing them to exert greater predictive power while minimizing the
+duces a prototype-based entropy regularization term during the early negative influence of less informative ones.
+7
+
+=== 第 8 页 ===
+Y. Wu et al. Information Fusion 117 (2025) 102890
+Table 3
+Comparative performances of various fusion methods across different modality combinations for MIMIC-in-hospital mortality prediction task.
+Modalities Fusion methods
+EHR CXR REP Concat Sum SE-Gate G-Blend OGM-GE PMR MedFuse DWFuse
+0.819 0.815 0.822 0.830 0.828 0.830 0.839 0.847*
+(cid:32) (cid:32) (cid:35) 0.817 0.815 0.820 0.825 0.829 0.831 0.827 0.834*
+(cid:32) (cid:35) (cid:32) 0.724 0.725 0.727 0.738 0.736 0.734 0.732 0.748*
+(cid:35) (cid:32) (cid:32) 0.811 0.807 0.815 0.831 0.836 0.834 0.845 0.859*
+*
+(cid:32)
+Indicates
+(cid:32)
+a statistical
+(cid:32)
+ly significant improvement over all other methods (𝑝 <0.05), based on a paired t-test conducted using performance
+scores from 5-fold cross-validation.
+explores the effectiveness of our proposed missing data imputation
+(IMP) module, which infers the embeddings of missing modalities from
+those of available one based on the underlying connections between
+modalities.
+As shown inFig. 4, we first explore the impact of different missing
+rate on model performance across each uni-modality (i.e., CXR, REP,
+and EHR) or randomly missed any modality (i.e., Random) on the
+in-hospital mortality prediction task. The ‘Random’ line indicates the
+AUROC when one of these modalities is randomly missing. As seen,
+the performance decline of the model vary widely and drastically,
+with EHR modality showing the most significant drop, highlighting
+its critical role in the in-hospital mortality prediction task. Moreover,
+the model’s performance decline varies across different modalities,
+underscoring the need for tailored data imputation strategies for dif-
+ferent patient instances and modalities. As observed, there are two
+key findings: (1) The performance decline is significant and drastic,
+Fig. 4. Impact of increasing missing rate on AUROC across each uni-modality with the EHR modality showing the most substantial drop. This high-
+(
+in
+i.
+-
+e
+h
+.,
+o s
+C
+p
+X
+it
+R
+a
+,
+l
+R
+m
+E
+o
+P
+r
+,
+t a
+a
+l
+n
+it
+d
+y
+E
+p
+H
+re
+R
+d
+)
+i c
+o
+t
+r
+i o
+r
+n
+a n
+t
+d
+a
+o
+sk
+m
+.
+ly missed any modality (i.e., Random) for MIMIC-
+lights the critical role of the EHR modality in the in-hospital mortality
+prediction task; (2) The degree of performance decline varies across
+different modalities, underscoring the need for tailored data imputation
+strategies for different patient instances and modalities.
+Our experiments demonstrate that DWFuse outperforms all com-
+Then, we verify the effectiveness of our proposed data imputation
+pared fusion methods across various combinations of multi-modalities.
+method by experimenting (1) across various modality combinations,
+As presented inTable 3, DWFuse consistently achieves superior perfor-
+and (2) across different missing rates in Figs. 5 and 6, respectively.
+mance compared to other advanced fusion strategies, including Con-
+The results demonstrate that the introduction of the imputation strategy
+catenation [58], Summation [59], SE-Gate [60], G-Blend [28], OGM- significantly improves performance. In detail, we compare the model’s
+GE [29], PMR [10], and MedFuse [50]. In the partly modality combi- performance with and without the data imputation module (Imp and
+nations of EHR+CXR, EHR+REP, and CXR+REP, DWFuse also shows No-imp) applied across different modality combinations, including CXR
+remarkable improvements, with AUROC scores increasing from 0.819, + Rep, CXR + EHR, Rep + EHR, and CXR + Rep + EHR, against
+0.817, and 0.724 in concatenation to 0.847, 0.834, and 0.748, re- increasing missing data rates from 0% to 90%. Models implementing
+spectively. Even more impressively, in the full modality combination imputation start with robust AUROC values and exhibit a slower decline
+(i.e., EHR+CXR+REP), DWFuse elevates the AUROC from 0.811 to in performance as the missing data rate increases, compared to the
+0.859, surpassing all the compared methods. To evaluate the robustness steeper performance drop observed in models without imputation. For
+of the performance improvements of our proposed DWFuse method instance, in the combination of all three modalities (i.e., CXR + Rep
+over baseline fusion methods, we conduct a statistical significance + EHR), the imputation model starts near an AUROC of 0.87 and
+analysis. Specifically, we employ paired t-tests to compare the results remains above 0.86 even at 90% missing data, significantly outper-
+of DWFuse with each of the baseline methods across all modality forming the non-imputation model which declines to approximately
+combinations for the MIMIC in-hospital mortality prediction task. The 0.83. This evidence highlights the importance of incorporating effec-
+results of the statistical tests indicate that the improvements achieved tive imputation methods in clinical predictive analytics, enhancing the
+by DWFuse are statistically significant compared to all other fusion reliability and accuracy of predictions crucial for informed decision-
+methods (p<0.05) for each modality combination. making in healthcare settings, particularly in scenarios with substantial
+Moreover, DWFuse unlocks the predictive potential of the multi- data incompleteness.
+modal model, surpassing the performance of dominant uni-modal mod- Furthermore, Fig. 7 illustrates the evolution of missing data im-
+els, i.e., DWFuse advanced multi-modal performance of 0.859 better putation effectiveness during the training process for the pathological
+than dominated EHR uni-modal performance of 0.828. These results subtyping prediction task. The red curve represents the similarity ma-
+underscore the effectiveness of DWFuse in mitigating the multi-modal trix between the imputed missing data and the ground truth missing
+optimization dilemma. By adaptively weighting the input from each data, while the blue curve represents the AUROC. It is evident that
+modality according to its predictive power and contextual relevance, the imputed data increasingly resembles the ground truth values as
+DWFuse ensures that the integration of multimodal data is not only training progresses, demonstrating the improving imputation accuracy
+more balanced but also more synergistic. of our method. Also,Fig. 8shows the T-SNE visualization of the original
+and imputed uni-modality embeddings. For example, EHR denotes the
+5.3. Enhancing modality integration with missing data imputation original uni-modality embeddings of electronic health records, while
+EHR-imputed represents the imputed ones. This visualization highlights
+One significant challenge in multi-modal models is handling incon- the preservation of data structure post-imputation, illustrating how
+sistencies and gaps within the data—a problem often exacerbated by closely imputed embeddings align with their original counterparts in
+the missing data inherent in real-world clinical settings. This section the embedded space.
+8
+
+=== 第 9 页 ===
+Y. Wu et al. Information Fusion 117 (2025) 102890
+Fig. 5. Impact of data imputation on AUROCacross various modality combinationsfor the MIMIC in-hospital mortality prediction task. Notably, even when the missing rate is zero
+for the two given modalities, our method can still impute the third modality and achieve improved performance.
+Fig. 6. Impact of data imputation on AUROCacross different missing ratesfor MIMIC-in-hospital mortality prediction task.
+5.4. Ablation study of designed components to 0.868 for pathological subtyping prediction. In row (c), adding TLA
+training strategy further boosts performance by enabling the trace-
+Table 4 lists the impact of the key components in our proposed
+ability and activation of the lazy modalities combinations, which is
+framework across various modality combinations. Initially, the row (a)
+evident in the incremental AUROC improvements—for instance, in-
+of each task represents the baseline, which removes all proposed com-
+ponents and fuses multi-modalities in a basic concatenation manner.
+creasing from 0.834 to 0.854 in REP+EHR modality combination for
+Based on this, the introduction of DWFuse alone significantly improves in-hospital mortality prediction. Additionally, introducing the IMP-
+predictive outcomes by dynamically weighting each modality’s input, forward module in row (d) improves model performance, and the
+from 0.811 to 0.859 for in-hospital mortality prediction and from 0.812 inclusion of IMP-backward further enhances performance, as shown in
+9
+
+=== 第 10 页 ===
+Y. Wu et al. Information Fusion 117 (2025) 102890
+Table 4
+Ablation performances with different designed components.
+In-hospital mortality
+Components CXR+REP CXR+EHR REP+EHR CXR+REP+EHR
+DWFuse TLA IMP-fw IMP-bw
+(a) 0.724 0.819 0.817 0.811
+(b) ✓ 0.748 0.847 0.834 0.859
+(c) ✓ ✓ 0.754 0.861 0.854 0.872
+(d) ✓ ✓ ✓ 0.772 0.863 0.862 0.870
+(e) ✓ ✓ ✓ 0.789 0.855 0.854 0.863
+(f) ✓ ✓ ✓ ✓ 0.803 0.867 0.862 0.872
+Pathological subtyping
+Components CT+PET CT+REP PET+REP CT+PET+REP
+DWFuse TLA IMP-fw IMP-bw
+(a) 0.815 0.822 0.787 0.812
+(b) ✓ 0.845 0.849 0.819 0.868
+(c) ✓ ✓ 0.859 0.861 0.833 0.889
+(d) ✓ ✓ ✓ 0.863 0.869 0.842 0.890
+(e) ✓ ✓ ✓ 0.860 0.863 0.850 0.868
+(f) ✓ ✓ ✓ ✓ 0.869 0.874 0.859 0.894
+row (f). For instance, the inclusion of backward imputation improves
+the CXR+REP performance from 0.772 to 0.803 in the In-hospital
+Mortality task and increases the PET+REP performance from 0.842
+to 0.859 in Pathological Subtyping. These results show that backward
+imputation enhances the consistency and accuracy of reconstructed
+modalities, ultimately leading to better overall predictive performance.
+Moreover, the complete integration of DWFuse, TLA, and IMP yields
+the most substantial gains, with AUROC reaching up to 0.872 in the
+CXR+REP+EHR combination for in-hospital mortality prediction, and
+up to 0.894 for pathological subtyping prediction. It can be seen that
+our framework not only mitigates the negative impact of any under-
+performing lazy modality but also unleashes its potential predictive
+power, leading to more accurate predictions. Such strategies are crucial
+in clinical settings where low-quality data is prevalent, while pre-
+cise multimodal data interpretation can significantly influence patient
+Fig. 7. Evolution of missing data imputation effectiveness during training progress outcomes.
+for pathological subtyping prediction task. The red curve illustrates the similarity
+matrix between imputed missing data and ground truth missing data. The blue curve 6. Conclusion and future work
+represents the AUROC. It can be seen that the imputed data increasingly resembles
+g
+im
+ro
+p
+u
+u
+n
+t
+d
+at i
+t
+o
+r
+n
+u t
+a
+h
+c c
+v
+u
+a
+r
+l
+a
+u
+c
+e
+y
+s
+o
+w
+f
+i
+o
+th
+u r
+th
+m
+e
+e t
+p
+h
+r
+o
+o
+d
+g
+.
+ression of training, demonstrating the improving
+In this paper, we introduce a novel framework designed to address
+the inherent challenges in multimodal learning, particularly within the
+medical domain with low-quality data. Traditional methods often strug-
+gle with incomplete or missing modalities, which significantly impact
+prediction accuracy and robustness. Our framework effectively handles
+any combination of missing modalities through autonomous imputa-
+tion and employs a dynamic weighted fusion technique that explicitly
+quantifies and leverages inter-modality relationships. Additionally, our
+approach identifies and activates ‘‘lazy modalities’’, thereby enhancing
+overall prediction accuracy and reliability. By dynamically adapting
+to changing data scenarios and providing reliable, traceable predic-
+tive outputs, our framework represents a significant advancement in
+the field of multimodal learning. Experimental validation on MIMIC-
+III, MIMIC-IV, and a proprietary lung cancer pathological subtyping
+dataset, demonstrates the robustness and versatility of our framework.
+A notable design choice in this work is the use of BERT as a fixed
+text encoder. Fine-tuning BERT led to poorer results, so we opt to
+use it without task-specific adaptation. However, future research could
+explore partially fine-tuning BERT or utilizing domain-specific models,
+such as Medical BERT, to enhance medical knowledge representation.
+While the primary objective of this work is to propose a generaliz-
+able and scalable framework, incorporating specialized text encoding
+methods may further improve accuracy in specific medical applications.
+Future work will also focus on enhancing the scalability and compu-
+tational efficiency of our framework, making it suitable for large-scale,
+F
+em
+ig
+b
+.
+e
+8
+d
+.
+di
+T
+n
+h
+g
+e
+s o
+T
+f
+- S
+e
+N
+a
+E
+ch
+v i
+u
+s
+n
+u
+i
+a
+-
+l
+m
+iz
+o
+a
+d
+ti
+a
+o
+l
+n
+it y
+o f
+f o
+t
+r
+h e
+M
+o
+IM
+rig
+IC
+in
+-
+a
+p
+l
+h e
+g
+n
+ro
+o
+u
+ty
+n
+p
+d
+e
+t
+c
+ru
+la
+t
+s
+h
+s i
+e
+fi
+m
+ca
+b
+t
+e
+io
+d
+n
+d in
+ta
+g
+s
+s
+k .
+and imputed
+real-time applications. We aim to extend the framework’s capabilities
+to handle a wider range of data modalities and test its applicability
+10
+
+=== 第 11 页 ===
+Y. Wu et al. Information Fusion 117 (2025) 102890
+across other domains, such as autonomous systems and multimedia [9] J. Wen, Z. Zhang, L. Fei, B. Zhang, Y. Xu, Z. Zhang, J. Li, A survey on
+processing. incomplete multiview clustering, IEEE Trans. Syst. Man Cybern.: Syst. 53 (2)
+Additionally, we plan to integrate our framework into clinical work- (2022) 1136–1149.
+flows to enable real-time support and decision-making for health-
+[10] Y
+m
+.
+u
+F
+lt
+a
+i
+n
+m
+,
+o
+W
+da
+.
+l
+X
+l
+u
+e
+,
+a r
+H
+n
+.
+i n
+W
+g
+a
+,
+n
+in
+g
+:
+, J
+P
+.
+r o
+W
+c
+a
+ee
+n
+d
+g
+i
+,
+n
+S
+g
+.
+s
+G
+o
+u
+f
+o
+t
+,
+h
+P
+e
+m
+IE
+r:
+E
+P
+E
+r
+/
+o
+C
+t
+V
+ot
+F
+y p
+C
+i
+o
+ca
+n
+l
+f e
+m
+re
+o
+n
+d
+c
+a
+e
+l
+o
+re
+n
+b a
+C
+l
+o
+a
+m
+nc
+p
+e
+u
+f
+t
+o
+er
+r
+care professionals. This will include developing user-friendly interfaces Vision and Pattern Recognition, 2023, pp. 20029–20038.
+and visualization tools to allow end-users to interpret predictions and [11] M. Salvi, H.W. Loh, S. Seoni, P.D. Barua, S. García, F. Molinari, U.R. Acharya,
+understand the contributions of different modalities. Ensuring data Multi-modality approaches for medical support systems: A systematic review of
+security and privacy, particularly in medical applications, will also
+[12]
+t
+H
+h
+.
+e
+F
+l
+e
+a
+n
+st
+g ,
+d e
+Q
+c
+.
+a d
+L
+e
+i,
+,
+W
+In
+.
+f .
+W
+Fu
+a
+s
+n
+i
+g
+o
+,
+n
+A
+(
+.
+2
+K
+0
+.
+2
+B
+3
+a
+)
+s
+1
+h
+0
+ir
+2
+,
+1
+A
+3
+.
+4
+K
+.
+. Singh, J. Xu, K. Fang, Security of
+be a priority, as compliance with relevant regulations is essential to
+target recognition for UAV forestry remote sensing based on multi-source data
+safeguard sensitive information. By pursuing these directions, we aim to fusion transformer framework, Inf. Fusion 112 (2024) 102555.
+enhance the practical utility of our framework and promote the broader [13] A.E. Johnson, T.J. Pollard, L. Shen, L.-w.H. Lehman, M. Feng, M. Ghassemi, B.
+adoption of robust multimodal learning systems across diverse fields. Moody, P. Szolovits, L. Anthony Celi, R.G. Mark, MIMIC-III, a freely accessible
+critical care database, Sci. Data 3 (1) (2016) 1–9.
+[14] A.E. Johnson, L. Bulgarelli, L. Shen, A. Gayles, A. Shammout, S. Horng, T.J.
+CRediT authorship contribution statement Pollard, S. Hao, B. Moody, B. Gow, et al., MIMIC-IV, a freely accessible electronic
+health record dataset, Sci. Data 10 (1) (2023) 1.
+Yixuan Wu: Writing – original draft, Visualization, Software, [15] D. Zhang, D. Shen, A.D.N. Initiative, et al., Multi-modal multi-task learning for
+Methodology, Investigation. Jintai Chen: Writing – review & joint prediction of multiple regression and classification variables in Alzheimer’s
+editing, Validation, Supervision. Lianting Hu: Formal analysis, Data
+[16] F
+d
+.
+i se
+L
+a
+iu
+se
+,
+,
+C
+N
+.
+e
+-Y
+u
+.
+r o
+W
+im
+e
+a
+e
+g
+,
+e
+H
+5
+.
+9
+C
+(
+h
+2
+e
+)
+n
+(
+,
+20
+D
+1
+.
+2
+S
+)
+h
+8
+e
+9
+n
+5
+,
+–
+I
+9
+n
+0
+t
+7
+er
+.
+-modality relationship constrained
+curation. Hongxia Xu: Visualization, Supervision. Huiying Liang: multi-modality multi-task feature selection for Alzheimer’s Disease and mild
+Writing – review & editing, Resources, Project administration, cognitive impairment identification, Neuroimage 84 (2014) 466–475.
+Investigation, Conceptualization. Jian Wu: Supervision, Resources, [17] K.-H. Thung, C.-Y. Wee, P.-T. Yap, D. Shen, A.D.N. Initiative, et al., Neurode-
+Project administration, Funding acquisition.
+g
+sh
+e
+r
+n
+i
+e
+n
+r
+k
+a
+a
+t
+g
+iv
+e
+e
+a
+d
+n
+i
+d
+s e
+c
+a
+o
+s
+m
+e
+p
+d
+l
+i
+e
+a
+t
+g
+io
+n
+n
+o
+,
+s i
+N
+s
+e
+u
+u
+s
+r
+i
+o
+n
+i
+g
+m a
+in
+ge
+c o
+9
+m
+1
+p
+(
+le
+2
+t
+0
+e
+1 4
+m
+)
+u
+3
+lt
+8
+i-
+6
+m
+–4
+o
+0
+d
+0
+a
+.
+lity data via matrix
+[18] W. van Loon, M. Fokkema, F. de Vos, M. Koini, R. Schmidt, M. de Rooij,
+Funding Imputation of missing values in multi-view data, Inf. Fusion (2024) 102524.
+[19] Q. Zhou, T. Chen, H. Zou, X. Xiao, Uncertainty-aware incomplete multimodal
+This research was partially supported by National Natural Science fusion for few-shot Central Retinal Artery Occlusion classification, Inf. Fusion
+Foundation of China under grants No.82202984, No. 62076076,
+[20]
+1
+W
+0
+.
+4
+S h
+(2
+a
+0
+o
+2
+,
+4
+L
+)
+.
+1
+H
+0
+e
+2
+,
+2
+P
+0
+.S
+0
+.
+.
+Yu, Multiple incomplete views clustering via weighted non-
+No. 82122036, and No. 12326612, Basic and Applied Basic negative matrix factorization with regularization, in: Joint European Conference
+Research Foundation of Guangdong Province, China under grant on Machine Learning and Knowledge Discovery in Databases, Springer, 2015,
+No. 2022A1515110722, and No. 2024A1515011750. pp. 318–334.
+[21] H. Zhao, H. Liu, Y. Fu, Incomplete multi-modal visual data grouping, in: IJCAI,
+Declaration of competing interest
+[22] Y
+20
+.
+1
+Y
+6
+e
+,
+,
+p
+X
+p
+.
+.
+L
+2
+iu
+3
+,
+9
+Q
+2–
+.
+2
+L
+3
+iu
+9
+,
+8
+J
+.
+. Yin, Consensus kernel K-means clustering for incomplete
+multiview data, Comput. Intell. Neurosci. 2017 (1) (2017) 3961718.
+The authors declare that they have no known competing financial [23] X. Liu, Incomplete multiple kernel alignment maximization for clustering, IEEE
+interests or personal relationships that could have appeared to Trans. Pattern Anal. Mach. Intell. 46 (3) (2021) 1412–1424.
+influence the work reported in this paper.
+[24]
+i
+J
+n
+.
+c
+W
+om
+en
+p
+,
+l e
+Z
+te
+. Z
+m
+h
+u
+a
+l
+n
+ti
+g
+-
+,
+v i
+Z
+ew
+. Z
+c
+h
+l
+a
+u
+n
+s
+g
+te
+,
+ri
+Z
+n
+.
+g
+W
+n
+u
+e
+,
+t w
+L
+o
+.
+r
+F
+k
+e
+,
+i,
+i n
+Y
+:
+.
+P
+X
+r
+u
+o
+,
+c e
+B
+e
+.
+d i
+Z
+n
+h
+g
+a
+s
+n g
+o
+,
+f
+D
+th
+im
+e
+c
+2
+-n
+8
+e
+t
+t
+h
+: D
+A
+e
+C
+e
+M
+p
+International Conference on Multimedia, 2020, pp. 3753–3761.
+Data availability [25] J. Wen, Z. Wu, Z. Zhang, L. Fei, B. Zhang, Y. Xu, Structural deep incomplete
+multi-view clustering network, in: Proceedings of the 30th ACM International
+The authors do not have permission to share data. Conference on Information & Knowledge Management, 2021, pp. 3538–3542.
+[26] C. Liu, J. Wen, X. Luo, C. Huang, Z. Wu, Y. Xu, Dicnet: Deep instance-level
+contrastive network for double incomplete multi-view multi-label classification,
+in: Proceedings of the AAAI Conference on Artificial Intelligence, Vol. 37, 2023,
+References
+pp. 8807–8815.
+[27] C. Zhang, Z. Han, H. Fu, J.T. Zhou, Q. Hu, et al., CPM-Nets: Cross partial
+[1] J. Liu, H. Zheng, D. Huo, Y. Hao, D. Niyato, S.A. Alqahtani, M. Chen, Big fiber multi-view networks, Adv. Neural Inf. Process. Syst. 32 (2019).
+slicing for dynamic multi-modal multi-preference applications of smart fabrics, [28] W. Wang, D. Tran, M. Feiszli, What makes training multi-modal classification
+IEEE Internet Things J. (2024). networks hard? in: Proceedings of the IEEE/CVF Conference on Computer Vision
+[2] Y. Wu, J. Chen, J. Yan, Y. Zhu, D.Z. Chen, J. Wu, GCL: Gradient-guided and Pattern Recognition, 2020, pp. 12695–12705.
+contrastive learning for medical image segmentation with multi-perspective meta [29] X. Peng, Y. Wei, A. Deng, D. Wang, D. Hu, Balanced multimodal learning via
+labels, in: Proceedings of the 31st ACM International Conference on Multimedia, on-the-fly gradient modulation, in: Proceedings of the IEEE/CVF Conference on
+2023, pp. 463–471. Computer Vision and Pattern Recognition, 2022, pp. 8238–8247.
+[3] C. Gan, Y. Tang, X. Fu, Q. Zhu, D.K. Jain, S. García, Video multimodal senti- [30] N. Wu, S. Jastrzebski, K. Cho, K.J. Geras, Characterizing and overcoming the
+ment analysis using cross-modal feature translation and dynamical propagation, greedy nature of learning in multi-modal deep neural networks, in: International
+Knowl.-Based Syst. (2024) 111982. Conference on Machine Learning, PMLR, 2022, pp. 24043–24055.
+[4] Y. Wu, Z. Zhang, C. Xie, F. Zhu, R. Zhao, Advancing referring expression [31] G. Muhammad, F. Alshehri, F. Karray, A. El Saddik, M. Alsulaiman, T.H. Falk, A
+segmentation beyond single image, in: Proceedings of the IEEE/CVF International comprehensive survey on multimodal medical signals fusion for smart healthcare
+Conference on Computer Vision, 2023, pp. 2628–2638. systems, Inf. Fusion 76 (2021) 355–375.
+[5] Y. Wang, Y. Wu, S. Tang, W. He, X. Guo, F. Zhu, L. Bai, R. Zhao, J. Wu, T. [32] Y. Sun, S. Mai, H. Hu, Learning to balance the learning rates between various
+He, et al., Hulk: A universal knowledge translator for human-centric tasks, 2023, modalities via adaptive tracking factor, IEEE Signal Process. Lett. 28 (2021)
+arXiv preprintarXiv:2312.01697. 1650–1654.
+[6] J. Yan, J. Chen, Y. Wu, D.Z. Chen, J. Wu, T2g-former: organizing tabular [33] Y. Zhou, X. Liang, S. Zheng, H. Xuan, T. Kumada, Adaptive mask co-optimization
+features into relation graphs promotes heterogeneous feature interaction, in: for modal dependence in multimodal learning, in: ICASSP 2023-2023 IEEE
+Proceedings of the AAAI Conference on Artificial Intelligence, Vol. 37, 2023, International Conference on Acoustics, Speech and Signal Processing, ICASSP,
+pp. 10720–10728. IEEE, 2023, pp. 1–5.
+[7] J. Wang, T. Chen, J. Chen, Y. Wu, Y. Xu, D. Chen, H. Ying, J. Wu, PoCo: A [34] Y. Wei, R. Feng, Z. Wang, D. Hu, Enhancing multimodal cooperation via
+self-supervised approach via polar transformation based progressive contrastive sample-level modality valuation, in: Proceedings of the IEEE/CVF Conference
+learning for ophthalmic disease diagnosis, 2024, arXiv preprint arXiv:2403. on Computer Vision and Pattern Recognition, 2024, pp. 27338–27347.
+19124. [35] S.C. Kulkarni, P.P. Rege, Pixel level fusion techniques for SAR and optical images:
+[8] Y. Wu, B. Zheng, J. Chen, D.Z. Chen, J. Wu, Self-learning and one-shot A review, Inf. Fusion 59 (2020) 13–29.
+learning based single-slice annotation for 3d medical image segmentation, in: [36] X. Cheng, Y. Zhong, Y. Dai, P. Ji, H. Li, Noise-aware unsupervised deep lidar-
+International Conference on Medical Image Computing and Computer-Assisted stereo fusion, in: Proceedings of the IEEE/CVF Conference on Computer Vision
+Intervention, Springer, 2022, pp. 244–254. and Pattern Recognition, 2019, pp. 6339–6348.
+11
+
+=== 第 12 页 ===
+Y. Wu et al. Information Fusion 117 (2025) 102890
+[37] X. Bai, Z. Hu, X. Zhu, Q. Huang, Y. Chen, H. Fu, C.-L. Tai, Transfusion: Robust [48] M. Sadeghi, X. Alameda-Pineda, Switching variational auto-encoders for noise-
+lidar-camera fusion for 3d object detection with transformers, in: Proceedings of agnostic audio-visual speech enhancement, in: ICASSP 2021-2021 IEEE Inter-
+the IEEE/CVF Conference on Computer Vision and Pattern Recognition, 2022, national Conference on Acoustics, Speech and Signal Processing, ICASSP, IEEE,
+pp. 1090–1099. 2021, pp. 6663–6667.
+[38] B. Rajalingam, F. Al-Turjman, R. Santhoshkumar, M. Rajesh, Intelligent multi- [49] Z. Li, Y. Jiang, M. Lu, R. Li, Y. Xia, Survival prediction via hierarchical mul-
+modal medical image fusion with deep guided filtering, Multimedia Syst. 28 (4) timodal co-attention transformer: A computational histology-radiology solution,
+(2022) 1449–1463. IEEE Trans. Med. Imaging 42 (9) (2023) 2678–2689.
+[39] Q. Guihong, Z. Dali, Y. Pingfan, Medical image fusion by wavelet transform [50] N. Hayat, K.J. Geras, F.E. Shamout, MedFuse: Multi-modal fusion with clinical
+modulus maxima, Opt. Express 9 (4) (2001) 184–190. time-series data and chest X-ray images, in: Machine Learning for Healthcare
+[40] A. Achim, C. Canagarajah, D. Bull, Complex wavelet domain image fusion based Conference, PMLR, 2022, pp. 479–503.
+on fractional lower order moments, in: 2005 7th International Conference on [51] M. Wang, S. Fan, Y. Li, H. Chen, Missing-modality enabled multi-modal fusion
+Information Fusion, Vol. 1, IEEE, 2005, pp. 7–pp. architecture for medical data, 2023, arXiv preprintarXiv:2309.15529.
+[41] L. Gjesteby, B. De Man, Y. Jin, H. Paganetti, J. Verburg, D. Giantsoudi, G. Wang, [52] F.E. Shamout, Y. Shen, N. Wu, A. Kaku, J. Park, T. Makino, S. Jastrzębski,
+Metal artifact reduction in CT: where are we after four decades? Ieee Access 4 J. Witowski, D. Wang, B. Zhang, et al., An artificial intelligence system for
+(2016) 5826–5849. predicting the deterioration of COVID-19 patients in the emergency department,
+[42] S. Changpinyo, P. Sharma, N. Ding, R. Soricut, Conceptual 12m: Pushing NPJ Digit. Med. 4 (1) (2021) 80.
+web-scale image-text pre-training to recognize long-tail visual concepts, in: [53] W. Shao, T. Wang, L. Sun, T. Dong, Z. Han, Z. Huang, J. Zhang, D. Zhang,
+Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern K. Huang, Multi-task multi-modal learning for joint diagnosis and prognosis of
+Recognition, 2021, pp. 3558–3568. human cancers, Med. Image Anal. 65 (2020) 101795.
+[43] L. Zhang, X. Zhu, X. Chen, X. Yang, Z. Lei, Z. Liu, Weakly aligned cross-modal [54] D. Ho, I.B.H. Tan, M. Motani, Predictive models for colorectal cancer recurrence
+learning for multispectral pedestrian detection, in: Proceedings of the IEEE/CVF using multi-modal healthcare data, in: Proceedings of the Conference on Health,
+International Conference on Computer Vision, 2019, pp. 5127–5137. Inference, and Learning, 2021, pp. 204–213.
+[44] P. Sharma, N. Ding, S. Goodman, R. Soricut, Conceptual captions: A cleaned, [55] L.A. Vale-Silva, K. Rohr, Long-term cancer survival prediction using multimodal
+hypernymed, image alt-text dataset for automatic image captioning, in: Proceed- deep learning, Sci. Rep. 11 (1) (2021) 13505.
+ings of the 56th Annual Meeting of the Association for Computational Linguistics [56] J. Devlin, M.-W. Chang, K. Lee, K. Toutanova, Bert: Pre-training of deep
+(Volume 1: Long Papers), 2018, pp. 2556–2565. bidirectional transformers for language understanding, 2018, arXiv preprint
+[45] F. Radenovic, A. Dubey, A. Kadian, T. Mihaylov, S. Vandenhende, Y. Patel, arXiv:1810.04805.
+Y. Wen, V. Ramanathan, D. Mahajan, Filtering, distillation, and hard negatives [57] K. He, X. Zhang, S. Ren, J. Sun, Deep residual learning for image recognition, in:
+for vision-language pre-training, in: Proceedings of the IEEE/CVF Conference on Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition,
+Computer Vision and Pattern Recognition, 2023, pp. 6967–6977. 2016, pp. 770–778.
+[46] S.Y. Gadre, G. Ilharco, A. Fang, J. Hayase, G. Smyrnis, T. Nguyen, R. Marten, M. [58] J. Duan, J. Xiong, Y. Li, W. Ding, Deep learning based multimodal biomedical
+Wortsman, D. Ghosh, J. Zhang, et al., Datacomp: In search of the next generation data fusion: An overview and comparative review, Inf. Fusion (2024) 102536.
+of multimodal datasets, Adv. Neural Inf. Process. Syst. 36 (2024). [59] T. Shaik, X. Tao, L. Li, H. Xie, J.D. Velásquez, A survey of multimodal
+[47] S. Wang, M.B. McDermott, G. Chauhan, M. Ghassemi, M.C. Hughes, T. Naumann, information fusion for smart healthcare: Mapping the journey from data to
+Mimic-extract: A data extraction, preprocessing, and representation pipeline for wisdom, Inf. Fusion (2023) 102040.
+mimic-iii, in: Proceedings of the ACM Conference on Health, Inference, and [60] J. Hu, L. Shen, G. Sun, Squeeze-and-excitation networks, in: Proceedings of
+Learning, 2020, pp. 222–235. the IEEE Conference on Computer Vision and Pattern Recognition, 2018, pp.
+7132–7141.
+12

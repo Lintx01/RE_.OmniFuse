@@ -1,0 +1,7 @@
+# 端到端原始数据（超声图像 + 病历文本 + 实验室数值）
+# 注意：PyTorch/torchvision 在 Windows 上建议按 pytorch.org 指令安装对应 CUDA/CPU 版本
+numpy>=1.24
+pillow>=10.0
+torchvision>=0.17
+transformers>=4.40
+scikit-learn>=1.3
